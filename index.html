@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style type="text/css">
+  html, body {
+    width: 100vw;
+    height: 100vh;
+  }
+	.node {
+    cursor: pointer;
+  }
+
+  .overlay{
+      background-color:#EEE;
+  }
+   
+  .node circle {
+    fill: #fff;
+    stroke: steelblue;
+    stroke-width: 1.5px;
+  }
+   
+  .node text {
+    font-size:10px; 
+    font-family:sans-serif;
+  }
+   
+  .link {
+    fill: none;
+    stroke: #ccc;
+    stroke-width: 1.5px;
+    /* stroke-opacity: 0.1; */
+  }
+
+  .templink {
+    fill: none;
+    stroke: red;
+    stroke-width: 3px;
+  }
+
+  .ghostCircle.show{
+      display:block;
+  }
+
+  .ghostCircle, .activeDrag .ghostCircle{
+       display: none;
+  }
+
+</style>
+<script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-interpolate-path@2.3.0/build/d3-interpolate-path.min.js"></script>
+<script src="main.js" type="module"></script>
+<body>
+    <div id="tree-container" style="width: 100%; height: 100%;">
+      <div class="btn" 
+      style="cursor: pointer; position: absolute; top: 50px; left: 48%; border: 1px solid black; width: 80px; height: 30px; justify-content: center; align-items: center; border-radius: 5px; display: flex;">
+        Change
+      </div>
+    </div>
+</body>
+</html>

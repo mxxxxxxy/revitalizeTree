@@ -1,0 +1,178 @@
+{
+    "name": "毛公",
+    "position": [[456, 66.562], [60, 120]],
+    "controlPoints": [],
+    "index": 0,
+    "children": [
+        {
+            "name": "馬副",
+            "children": [
+                {
+                    "name": "鄭玄",
+                    "children": [],
+                    "position": [[135, 716.5], [60, 120]],
+                    "index": 0,
+                    "controlPoints": [
+                        14,
+                        35
+                    ]
+                }
+            ],
+            "position": [[132, 412.56], [60, 120]],
+            "index": 0,
+            "controlPoints": [
+                6,
+                3,
+                13,
+                11,
+                33,
+                17,
+                8
+            ]
+        },
+        {
+            "name": "鄭衆",
+            "children": [],
+            "position": [[243, 460.56], [60, 120]],
+            "index": 1,
+            "controlPoints": [
+                6,
+                3,
+                13,
+                11,
+                33,
+                31
+            ]
+        },
+        {
+            "name": "謝曼卿",
+            "children": [
+                {
+                    "name": "衛宏",
+                    "children": [
+                        {
+                            "name": "徐巡",
+                            "children": [],
+                            "position": [[240, 1290.5], [60, 120]],
+                            "index": 0,
+                            "controlPoints": [
+                                27,
+                                22
+                            ]
+                        }
+                    ],
+                    "position": [[246, 1000.5], [60, 120]],
+                    "index": 0,
+                    "controlPoints": [
+                        36, 25,0,32
+                    ]
+                },
+                {
+                    "name": "賈𡽪",
+                    "children": [
+                        {
+                            "name": "逵",
+                            "children": [],
+                            "position": [[453, 1298], [60, 60]],
+                            "index": 0,
+                            "controlPoints": [
+                                26, 2
+                            ]
+                        }
+                    ],
+                    "position": [[458,1005.56], [60, 120]],
+                    "index": 1,
+                    "controlPoints": [
+                        36, 25, 12, 16
+                    ]
+                }
+            ],
+            "position": [[350, 419.5], [60, 180]],
+            "index": 2,
+            "controlPoints": [
+                6,3,13,11,10
+            ]
+        },
+        {
+            "name": "孔子建",
+            "children": [
+                {
+                    "name": "僖",
+                    "children": [],
+                    "position": [[458, 693.562], [60, 60]],
+                    "index": 0,
+                    "controlPoints": [
+                        1, 18
+                    ]
+                }
+            ],
+            "position": [[459, 430.56], [60, 180]],
+            "index": 3,
+            "controlPoints": [
+                6,
+                3,
+                13,
+                11,
+                28, 20
+            ]
+        },
+        {
+            "name": "孫期",
+            "children": [],
+            "position": [[567, 417.562], [60, 120]],
+            "index": 4,
+            "controlPoints": [
+                6,3,13,11,28,5,21
+            ]
+        },
+        {
+            "name": "尹敬",
+            "children": [],
+            "size": 1,
+            "position": [[670, 417.562], [60, 120]],
+            "index": 5,
+            "controlPoints": [
+                6,3,13,11,28,5,9,24
+            ]
+        },
+        {
+            "name": "貫長卿",
+            "children": [
+                {
+                    "name": "解迎年",
+                    "children": [
+                        {
+                            "name": "徐敖",
+                            "children": [
+                                {
+                                    "name": "陳俠",
+                                    "children": [],
+                                    "position": [[787, 1296.56], [60, 120]],
+                                    "index": 0,
+                                    "controlPoints": [
+                                        23, 7
+                                    ]
+                                }
+                            ],
+                            "position": [[789, 1123.56], [60, 120]],
+                            "index": 0,
+                            "controlPoints": [
+                                19, 15
+                            ]
+                        }
+                    ],
+                    "position": [[790, 913.562], [60, 180]],
+                    "index": 0,
+                    "controlPoints": [
+                        29, 30
+                    ]
+                }
+            ],
+            "position": [[786, 680.562], [60, 180]],
+            "index": 6,
+            "controlPoints": [
+                6,3,34,4
+            ]
+        }
+    ]
+}
