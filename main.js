@@ -1,6 +1,7 @@
 
 import controlPointsDict from "./mao/controlPoints.json" with { type: "json" };
-import { calculateImageSize, getImageData } from "./utils.js";
+import { calculateImageSize } from "./utils.js";
+import interaction from "./interaction.js";
 
 var newControlPointsDict;
 var dragStarted;
@@ -76,7 +77,7 @@ function resizePoints(originalSize, currentSize, root){
         node.data._position = [[0,0], [0,0]]
         node.data._position[0][0] = node.data.position[0][0] * xRatio 
         node.data._position[1][0] = node.data.position[1][0] * xRatio 
-        node.data._position[0][1] = node.data.position[0][1] * yRatio 
+        node.data._position[0][1] = node.data.position[0][1] * xRatio 
         node.data._position[1][1] = node.data.position[1][1] * yRatio 
     })
     return res
@@ -257,7 +258,7 @@ function elbow(d) {
 // preprocessing
 var imgSize = await calculateImageSize("./mao/img.jpeg", 400)
 // Get JSON data
-var treeJSON = d3.json("./mao/data.json").then((treeData) => {
+var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
     // Calculate total nodes, max label length
     var totalNodes = 0;
     var maxLabelLength = 0;
@@ -923,12 +924,23 @@ var treeJSON = d3.json("./mao/data.json").then((treeData) => {
     centerNode(root, true);
     var quadtree = Quadtree.addAll(root.descendants());
 
+    var OpacityFilter = (imageData) => {
+        console.log(imageData)
+        var nPixels = imageData.data.length;
+        for (let i = 0; i < nPixels.length; i += 4) {
+            const alpha = maskData[i + 3]; // B 通道
+            console.log(alpha)
+            if (alpha == 0) {
+                imageData[i + 3] = 255; // 将 alpha 通道设置为 0（透明）
+            }
+        }
+        // return imgData
+    }; 
 
     var getMaskFilter = (maskImageData) => {
         return (imageData) => {
-            // make all pixels opaque 100%
             var nPixels = imageData.data.length;
-            // console.log(nPixels, maskImageData.data.length)
+            console.log(nPixels, maskImageData.data.length)
             console.log(imageData, maskImageData)
             for (let i = 0; i < maskImageData.length; i += 4) {
                 const maskR = maskData[i]; // R 通道（黑白二值图，RGB 通道值相等）
@@ -953,32 +965,66 @@ var treeJSON = d3.json("./mao/data.json").then((treeData) => {
     var layer = new Konva.Layer();
     stage.add(layer);
 
-    root.descendants().forEach((_node, index) => {
-        let d = _node.data;
-        // 加载 mask
-
-        Konva.Image.fromURL('./mao/img.jpeg', function (image) {
-            image.setAttrs({
-                x: d._position[0][0],        // 根据需求设置在舞台中的位置
+    Konva.Image.fromURL('./mao/mask.png',  (maskImage) => {
+        maskImage.cache()
+        root.descendants().forEach((_node) => {
+            let d = _node.data;
+            var originalNode = maskImage.clone({
+                x: d._position[0][0],        
                 y: d._position[0][1],
                 width: d._position[1][0],
                 height: d._position[1][1],
-            });
-            image.crop({
-                x: d.position[0][0],        // 根据需求设置在舞台中的位置
+                id: `${d.name}`,
+                draggable: true,
+                name: 'originalNode',
+            })
+            originalNode.crop({
+                x: d.position[0][0],    
                 y: d.position[0][1],
                 width: d.position[1][0],
                 height: d.position[1][1],
             })
-            getImageData(`./mao/masks/${d.name}.jpg`).then(maskData => {
-                // console.log(maskData)
-                console.log(image)
-                let maskFilter = getMaskFilter(maskData);
-                image.cache();
-                image.filters([maskFilter]);
-                layer.add(image);
-                layer.batchDraw();
-            })
-        });
+            originalNode.cache();
+            originalNode.on('mouseover', (e) => {
+                let target = e.currentTarget;
+                let hoverOverlay = target.clone({name: 'hover', listening: false});
+                hoverOverlay.cache()
+                // hoverOverlay.filters([ChangeColor]);
+                interaction.hover(hoverOverlay)
+                stage.container().style.cursor = 'pointer';
+                layer.add(hoverOverlay)
+                layer.draw(); // 应用更改
+              });
+            
+            originalNode.on('mouseleave', (e) => {
+                layer.find(".hover").forEach((hoverNode) => {
+                    hoverNode.clearCache();
+                    hoverNode.destroy();
+                })
+                stage.container().style.cursor = 'default';
+                layer.draw(); // 应用更改
+            });
+            layer.add(originalNode);
+        })
+        // layer.draw();
+        // const foundNode = layer.findOne('#毛公');
+        // var hoverNode = foundNode.clone({
+        //     id: "hoverNode",
+        //     zindex: 100
+        // })
+        // console.log(hoverNode);
+        // hoverNode.cache({drawBorder:true})
+        // hoverNode.filters([ChangeColor]);
+        // layer.add(hoverNode);
+        // layer.draw();
+        // hoverNode.clearCache();
+
+        // console.log(hoverNode)
+        // const ctxImage = image.toCanvas().getContext("2d");;
+        // const imageData = ctxImage.getImageData(0, 0, d._position[1][0], d._position[1][1]);
+        // const ctxMask = mask.toCanvas().getContext("2d");;
+        // const maskData = ctxMask.getImageData(0, 0, d._position[1][0], d._position[1][1]);
+        // const ctxImage = image.toCanvas().getContext("2d");;
+        // const imageData = ctxImage.getImageData(0, 0, d._position[1][0], d._position[1][1]);
     });
 });
