@@ -296,7 +296,7 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
     var root;
     var relCoords;
     var linkUpdate, nodeUpdate;
-    var mode = "modern"
+    var mode = "ancient"
     var initSize = [968, 1441];
       
     // size of the diagram
@@ -627,7 +627,6 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
     }
 
     // Toggle children on click.
-
     function click(e, d) {
         if (e.defaultPrevented) return; // click suppressed
         d = toggleChildren(d);
