@@ -1,5 +1,6 @@
-import controlPointsDict from "./controlPoints.json" with { type: "json" };
 
+import controlPointsDict from "./mao/controlPoints.json" with { type: "json" };
+import { calculateImageSize, getImageData } from "./utils.js";
 
 var newControlPointsDict;
 var dragStarted;
@@ -16,29 +17,14 @@ function pathCommandToString(commands) {
     return _;
 }
 
+var Quadtree = d3.quadtree()
+    .x(function (d) {
+      return d.x;
+    })
+    .y(function (d) {
+      return d.y;
+    });
 
-
-// Old version
-// function addInterpolateControlPointsToModernPath(ancient_path, modern_path) {
-//     // console.log("addInterpolateControlPointsToModernPath",ancient_path, modern_path)
-//     let ancientCommand = d3.pathCommandsFromString(ancient_path)
-//     let modernCommands = d3.pathCommandsFromString(modern_path)
-//     let start = modernCommands[1]; // 现代垂直直线布局一共有四个控制点，去掉第一个和最后一个，剩余两个之间的线段（横线）用于动画变化。
-//     let end = modernCommands[2]; //
-//     let numToAdd = ancientCommand.length - 4; // 根据古代path计算需要多少个添加的控制点。古代控制点总数减去两个端点以及对应现代横线布局的两个端点得到
-//         numToAdd = numToAdd > 0 ? numToAdd : 0; // 保证添加的端点数大于0
-//     let insertPoint = []
-//     if (numToAdd > 0){
-//         for(let j = 1; j <= numToAdd; j++){
-//             // d3.interpolatePathCommands 见 https://github.com/pbeshai/d3-interpolate-path
-//             let inserPointerMaker = d3.interpolatePathCommands([start], [end]); // 在现代垂直布局path的横线中等距插入点，inserPointerMaker接收0-1之间的数字，返回该比例下的点坐标
-//             let p = inserPointerMaker(j/(numToAdd+1));
-//             insertPoint.push(p[0])
-//         }
-//         modernCommands.splice(2, 0, ...insertPoint);
-//     }
-//     return pathCommandToString(modernCommands)
-// }
 
 function refreshTreeConfig (t){
     // merge hierarchy B in hierarchy A as child of nodeOfA
@@ -49,14 +35,6 @@ function refreshTreeConfig (t){
     }); 
     return t;
 }
-
-
-// Old version
-// function ancientPath(d){
-//     const lineIds = d.target.data.controlPoints;
-//     const ctrl_points = lineIds.map( id => newControlPointsDict[id]);
-//     return d3.line()(ctrl_points)
-// }
 
 
 function ancientPath(d, clean = true) {
@@ -93,8 +71,6 @@ function resizePoints(originalSize, currentSize, root){
     const res = {}
     for(let key of Object.keys(controlPointsDict)){
         res[key] = [controlPointsDict[key][0] * xRatio, controlPointsDict[key][1] * yRatio]
-        // controlPointsDict[key][0] *= xRatio
-        // controlPointsDict[key][1] *= yRatio
     }
     root.each(node => {
         node.data._position = [[0,0], [0,0]]
@@ -278,8 +254,10 @@ function elbow(d) {
 }
 
 
+// preprocessing
+var imgSize = await calculateImageSize("./mao/img.jpeg", 400)
 // Get JSON data
-var treeJSON = d3.json("./data.json").then((treeData) => {
+var treeJSON = d3.json("./mao/data.json").then((treeData) => {
     // Calculate total nodes, max label length
     var totalNodes = 0;
     var maxLabelLength = 0;
@@ -296,7 +274,7 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
     var root;
     var relCoords;
     var linkUpdate, nodeUpdate;
-    var mode = "modern"
+    var mode = "ancient"
     var initSize = [968, 1441];
       
     // size of the diagram
@@ -312,6 +290,12 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
           }
         );
     var svgGroup = baseSvg.append("g");
+    var svgImg = svgGroup.append("image");
+    svgImg.attr("href", "./mao/img.jpeg")
+        .attr("width", imgSize.newWidth)
+        .attr("height", imgSize.newHeight)
+        .attr("opacity", 1)
+        // .attr("preserveAspectRatio", "none")
 
     // Define the root
     root = d3.hierarchy(treeData);
@@ -406,15 +390,12 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
 
     function initiateDrag(d, domNode) {
         draggingNode = d;
-        d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
-        d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
         d3.select(domNode).attr('class', 'node activeDrag');
 
         svgGroup.selectAll("g.node").sort(function(a, b) { // select the parent and sort the path's
             if (a.id != draggingNode.id) return 1; // a is not the hovered element, send "a" to the back
             else return -1; // a is the hovered element, bring "a" to the front
         });
-
         // if nodes has children, remove the links and nodes
         if (nodes.length > 1) {
             // remove link paths
@@ -427,41 +408,31 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
             nodesExit = svgGroup.selectAll("g.node")
                 .data(nodes, function(d) {
                     return d.id;
-                }).filter(function(d, i) {
-                    if (d.id == draggingNode.id) {
-                        return false;
-                    }
-                    return true;
-                }).remove();
+                })
+                .filter(d => d.id !== draggingNode.id)
+                .remove();
         }
 
         // remove parent link
-        // parentLink = tree.links(tree.nodes(draggingNode.parent));
         parentLink = nodes[0].parent.links()
-        svgGroup.selectAll('path.link').filter(function(d, i) {
-            if (d.target.id == draggingNode.id) {
-                return true;
-            }
-            return false;
-        }).remove();
-
+        svgGroup.selectAll('path.link').filter(d => d.target.id == draggingNode.id).remove();
         dragStarted = null;
     }
 
     // Define the drag listeners for drag/drop behaviour of nodes.
     var drag = d3.drag()
         .on("start", function(e, d) {
-            // console.log("dragStarted", e, d)
             if (d == root) {
                 return;
             }
             dragStarted = true;
             nodes = d.descendants();
             e.sourceEvent.stopPropagation();
+            // 先去除quadtree中被拖拽的节点 否则会一直显示这个节点最近
+            quadtree.removeAll(nodes)
             // it's important that we suppress the mouseover event on the node being dragged. Otherwise it will absorb the mouseover event and the underlying node will not detect it d3.select(this).attr('pointer-events', 'none');
         })
         .on("drag", function(e, d) {
-            console.log("dragging")
             if (d == root) {
                 return;
             }
@@ -469,31 +440,31 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
                 domNode = this;
                 initiateDrag(d, domNode);
             }
+        //   {  if (relCoords[0] < panBoundary) {
+        //         panTimer = true;
+        //         pan(this, 'left');
+        //     } else if (relCoords[0] > ($('svg').width() - panBoundary)) {
+        //         panTimer = true;
+        //         pan(this, 'right');
+        //     } else if (relCoords[1] < panBoundary) {
+        //         panTimer = true;
+        //         pan(this, 'up');
+        //     } else if (relCoords[1] > ($('svg').height() - panBoundary)) {
+        //         panTimer = true;
+        //         pan(this, 'down');
+        //     } else {
+        //         try {
+        //             clearTimeout(panTimer);
+        //         } catch (e) {
 
-            if (relCoords[0] < panBoundary) {
-                panTimer = true;
-                pan(this, 'left');
-            } else if (relCoords[0] > ($('svg').width() - panBoundary)) {
-                panTimer = true;
-                pan(this, 'right');
-            } else if (relCoords[1] < panBoundary) {
-                panTimer = true;
-                pan(this, 'up');
-            } else if (relCoords[1] > ($('svg').height() - panBoundary)) {
-                panTimer = true;
-                pan(this, 'down');
-            } else {
-                try {
-                    clearTimeout(panTimer);
-                } catch (e) {
+        //         }
+        //     }}
 
-                }
-            }
-
-            d.x0 = d.x = e.x;
-            d.y0 = d.y = e.y;
+            d.x0 = e.x;
+            d.y0 = e.y;
+            selectedNode = quadtree.find(d.x0, d.y0)
             var node = d3.select(this);
-            node.attr("transform", `translate(${e.x}, ${e.y})`);
+            node.attr("transform", `translate(${d.x0}, ${d.y0})`);
             updateTempConnector();
         })
         .on("end", function(e, d) {
@@ -502,7 +473,6 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
             }
             domNode = this;
             if (selectedNode) {
-                // console.log(selectedNode, draggingNode)
                 // now remove the element from the parent, and insert it into the new elements children
                 var index = draggingNode.parent.children.indexOf(draggingNode);
                 if (index > -1) {
@@ -518,10 +488,11 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
                     selectedNode.children = [];
                     selectedNode.children.push(draggingNode);
                 }
-                root = refreshTreeConfig(root);
+                // 更新root
                 // Make sure that the node being added to is expanded so user can see added node is correctly moved
                 expand(selectedNode);
-                // console.log("selectedNode", selectedNode);
+                root = refreshTreeConfig(root);
+                quadtree = Quadtree.addAll(root.descendants())
                 // sortTree();
                 endDrag();
             } else {
@@ -531,14 +502,12 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
 
     function endDrag() {
         selectedNode = null;
-        d3.selectAll('.ghostCircle').attr('class', 'ghostCircle');
         d3.select(domNode).attr('class', 'node');
         // now restore the mouseover event or we won't be able to drag a 2nd time
-        d3.select(domNode).select('.ghostCircle').attr('pointer-events', '');
         updateTempConnector();
         if (draggingNode !== null) {
             update(root);
-            centerNode(draggingNode);
+            // centerNode(draggingNode);
             draggingNode = null;
         }
     }
@@ -560,15 +529,6 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
         }
     }
 
-    var overCircle = function(d) {
-        selectedNode = d;
-        updateTempConnector();
-    };
-    var outCircle = function(d) {
-        selectedNode = null;
-        updateTempConnector();
-    };
-
     // Function to update the temporary connector indicating dragging affiliation
     var updateTempConnector = function() {
         var data = [];
@@ -586,19 +546,15 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
             }];
         }
 
-        var _t = d3.link(d3.curveBumpY)
-                .x(function(d) { return d.x; })
-                .y(function(d) { return d.y; });
-
         var link = svgGroup.selectAll(".templink").data(data);
 
 
         const enterLink = link.enter().append("path")
             .attr("class", "templink")
-            .attr("d", _t)
+            .attr("d", elbow)
             .attr('pointer-events', 'none');
 
-        link.merge(enterLink).attr("d", _t);
+        link.merge(enterLink).attr("d", elbow);
 
         link.exit().remove();
     };
@@ -627,7 +583,6 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
     }
 
     // Toggle children on click.
-
     function click(e, d) {
         if (e.defaultPrevented) return; // click suppressed
         d = toggleChildren(d);
@@ -699,7 +654,7 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
                     .attr("width", 0)
                     .attr("height", 0)
                     .attr("fill", "none")
-                    .attr("stroke", "black")
+                    .attr("stroke", "none")
                     .attr("stroke-width", "1px")
                     .attr("opacity", 0);
                     // .remove();
@@ -714,8 +669,10 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
                 svgGroup.selectAll(".nodeCircle")
                     .attr("opacity", 0);
             })
+            svgGroup.selectAll("image").transition().duration(duration).attr("opacity", 1);
         }else{
-            svgGroup.selectAll(".nodeCircle").transition().duration(duration).attr("opacity", 1);
+            svgGroup.selectAll(".nodeCircle").transition().duration(duration).attr("opacity",1);
+            svgGroup.selectAll("image").transition().duration(duration).attr("opacity", 0);
         }
     })
 
@@ -725,7 +682,6 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
         // This makes the layout more consistent.
         var levelWidth = [1];
         var childCount = function(level, n) {
-
             if (n.children && n.children.length > 0) {
                 if (levelWidth.length <= level + 1) levelWidth.push(0);
 
@@ -735,11 +691,12 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
                 });
             }
         };
+        
         childCount(0, root);
         var newHeight = d3.max(levelWidth) * 60; // 25 pixels per line  
-        tree.size([500, 500]);
+        tree.size([imgSize.newWidth, imgSize.newHeight]);
         // console.log(newHeight, viewerHeight)
-        newControlPointsDict = resizePoints(initSize, [500, 500], root);
+        newControlPointsDict = resizePoints(initSize, [imgSize.newWidth, imgSize.newHeight], root);
 
         tree(root)
         // Compute the new tree layout.
@@ -765,25 +722,39 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
                 return d.id || (d.id = ++i);
             })
             ;
-        
+            
         // TODO: ancient下展开节点
-        // rect.enter()
-        //     .append("rect", d=>d)
-        //     .attr("x", d => d.x)
-        //     .attr("y", d => d.y)
-        //     .attr("width", 0)
-        //     .attr("height", 0)
-        //     .attr("fill", "black")
-        //     .attr("stroke", "black")
-        //     .attr("stroke-width", "1px")
-        //     .attr("opacity", 0)
+        rect.enter()
+            .append("rect")
+            .attr("x", d => d.data._position[0][0])
+            .attr("y", d => d.data._position[0][1])
+            .attr("width", d => {
+                return d.data._position[1][0]})
+            .attr("height", d => d.data._position[1][1])
+            .attr("fill", "transparent")
+            .attr("stroke", "none")
+            .attr("stroke-width", "1px")
+            .attr("opacity", 1)
+            .style("cursor", "pointer")
+            .on("mouseover", function(e, d){
+                let linkSelection = d3.selectAll(".link").filter( (_, i, nodes) => {
+                    return d3.select(nodes[i]).attr("target") === d.data.name
+                });
+                linkSelection.style("stroke", "red").style("stroke-width", "2px").raise()
+            })
+            .on("mouseout", function(e, d){
+                let linkSelection = d3.selectAll(".link").filter( (_, i, nodes) => {
+                    return d3.select(nodes[i]).attr("target") === d.data.name
+                });
+                linkSelection.style("stroke", "#000").style("stroke-width", "1.5px")
+            })
 
         // console.log(rect)
         rect.exit()
             .transition()
             .duration(duration)
-            .attr("x", d => d.x)
-            .attr("y", d => d.y)
+            .attr("x", d => d.x0)
+            .attr("y", d => d.y0)
             .attr("height", 0)
             .attr("width", 0)
             .attr("opacity", 0);
@@ -796,36 +767,34 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
                 if(mode === "ancient"){
                     return `translate(${source.data._position[0][0] + source.data._position[1][0] / 2}, ${source.data._position[0][1] + source.data._position[1][1] / 2})` //  <g>的位置是bbox左上角的位置
                 }
-                return `translate(${source.x0},${source.y0})`; //指定起始位置为source的位置，不影响动画后最终布局
-                // return `translate(${100},${100})`;
+                else return `translate(${source.x0},${source.y0})`; //指定起始位置为source的位置，不影响动画后最终布局
             })
             .on('click', click);
 
-        nodeEnter.append("circle")
-            .attr('class', 'nodeCircle')
-            .attr("r", 0)
-            .attr("opacity", mode === "modern" ? 1 : 0)
-            .style("fill", function(d) {
-                return d.children ? "lightsteelblue" : "#fff";
-            })
-            .on("mouseover", function(e, d){
-                let linkSelection = d3.selectAll(".link").filter( (_, i, nodes) => {
-                    return d3.select(nodes[i]).attr("target") === d.data.name
-                });
-                linkSelection.style("stroke", "#411c03").raise()
-            })
-            .on("mouseout", function(e, d){
-                let linkSelection = d3.selectAll(".link").filter( (_, i, nodes) => {
-                    return d3.select(nodes[i]).attr("target") === d.data.name
-                });
-                linkSelection.style("stroke", "#ccc").lower()
-            })
+        // nodeEnter.append("circle")
+        //     .attr('class', 'nodeCircle')
+        //     .attr("r", 0)
+        //     .attr("opacity", mode === "modern" ? 1 : 0)
+        //     .style("fill", function(d) {
+        //         return d.children ? "lightsteelblue" : "#fff";
+        //     })
+            // .on("mouseover", function(e, d){
+            //     let linkSelection = d3.selectAll(".link").filter( (_, i, nodes) => {
+            //         return d3.select(nodes[i]).attr("target") === d.data.name
+            //     });
+            //     linkSelection.style("stroke", "#411c03").raise()
+            // })
+            // .on("mouseout", function(e, d){
+            //     let linkSelection = d3.selectAll(".link").filter( (_, i, nodes) => {
+            //         return d3.select(nodes[i]).attr("target") === d.data.name
+            //     });
+            //     linkSelection.style("stroke", "#ccc").lower()
+            // })
 
         nodeEnter.append("text")
             .attr("x", function(d) {
                 return 0
             })
-            .attr("dy", "-1em")
             .attr('class', 'nodeText')
             .attr("text-anchor", function(d) {
                 return "middle"
@@ -833,33 +802,10 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
             .text(function(d) {
                 return d.name;
             })
-            .style("fill-opacity", 0);
-
-        // phantom node to give us mouseover in a radius around it
-        nodeEnter.append("circle")
-            .attr('class', 'ghostCircle')
-            .attr("r", 30)
-            .attr("opacity", 0.2) // change this to zero to hide the target area
-            .style("fill", "red")
-            .attr('pointer-events', 'mouseover')
-            .on("mouseover", function(e, node) {
-                overCircle(node);
-            })
-            .on("mouseout", function(e, node) {
-                outCircle(node);
-            });
+            .style("opacity", 0);
 
         // Update the text to reflect whether node has children or not.
         nodeEnter.select('text')
-            // .attr("x", function(d) {
-            //     return mode === "modern" ? 0 : 20;
-            // })
-            // .attr("y", function(d) {
-            //     return mode === "modern" ? 0 : -10;
-            // })
-            // .attr("text-anchor", function(d) {
-            //     return "middle";
-            // })
             .text(function(d) {
                 return d.data.name;
             });
@@ -872,7 +818,7 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
             });
 
 
-        // Transition nodes to their new position.
+        // Transition nodes to their new position. x & y
         nodeUpdate = node.merge(nodeEnter);
     
 
@@ -888,7 +834,7 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
 
         // Fade the text in
         nodeUpdate.select("text")
-            .style("fill-opacity", 1);
+            .style("opacity", 0);
 
         // nodeUpdate.select("rect")
 
@@ -952,8 +898,8 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
             .attrTween('d', function (d) {
                 let previous = d3.select(this).attr("d");
                 var o = {
-                    x: source.x0,
-                    y: source.y0 
+                    x: source.x,
+                    y: source.y 
                 };
                 if(mode === "ancient"){
                     o.x = source.data._position[0][0] + source.data._position[1][0]/2,
@@ -965,6 +911,7 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
             .remove();
 
         // Stash the old positions for transition.
+        // x0 是旧的x 用于transition
         nodes.forEach(function(d) {
             d.x0 = d.x;
             d.y0 = d.y;
@@ -974,4 +921,64 @@ var treeJSON = d3.json("./data.json").then((treeData) => {
     // Layout the tree initially and center on the root node.
     update(root);
     centerNode(root, true);
+    var quadtree = Quadtree.addAll(root.descendants());
+
+
+    var getMaskFilter = (maskImageData) => {
+        return (imageData) => {
+            // make all pixels opaque 100%
+            var nPixels = imageData.data.length;
+            // console.log(nPixels, maskImageData.data.length)
+            console.log(imageData, maskImageData)
+            for (let i = 0; i < maskImageData.length; i += 4) {
+                const maskR = maskData[i]; // R 通道（黑白二值图，RGB 通道值相等）
+                const maskG = maskData[i + 1]; // G 通道
+                const maskB = maskData[i + 2]; // B 通道
+      
+                // 如果 mask 是黑色（RGB 全为 0），将目标图像像素透明
+                if (maskR === 0 && maskG === 0 && maskB === 0) {
+                  imgData[i + 3] = 0; // 将 alpha 通道设置为 0（透明）
+                }
+            }
+            // return imgData
+        }; 
+    }
+
+    var stage = new Konva.Stage({
+        container: 'myCanvas',
+        width: 400,
+        height: 595,
+      });
+
+    var layer = new Konva.Layer();
+    stage.add(layer);
+
+    root.descendants().forEach((_node, index) => {
+        let d = _node.data;
+        // 加载 mask
+
+        Konva.Image.fromURL('./mao/img.jpeg', function (image) {
+            image.setAttrs({
+                x: d._position[0][0],        // 根据需求设置在舞台中的位置
+                y: d._position[0][1],
+                width: d._position[1][0],
+                height: d._position[1][1],
+            });
+            image.crop({
+                x: d.position[0][0],        // 根据需求设置在舞台中的位置
+                y: d.position[0][1],
+                width: d.position[1][0],
+                height: d.position[1][1],
+            })
+            getImageData(`./mao/masks/${d.name}.jpg`).then(maskData => {
+                // console.log(maskData)
+                console.log(image)
+                let maskFilter = getMaskFilter(maskData);
+                image.cache();
+                image.filters([maskFilter]);
+                layer.add(image);
+                layer.batchDraw();
+            })
+        });
+    });
 });
