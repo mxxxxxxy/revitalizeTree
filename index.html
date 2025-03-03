@@ -26,14 +26,14 @@
    
   .link {
     fill: none;
-    stroke: #ccc;
+    stroke: #000;
     stroke-width: 1.5px;
     /* stroke-opacity: 0.1; */
   }
 
   .templink {
     fill: none;
-    stroke: red;
+    stroke: black;
     stroke-width: 3px;
   }
 
@@ -49,13 +49,15 @@
 <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-interpolate-path@2.3.0/build/d3-interpolate-path.min.js"></script>
+<script src="https://unpkg.com/konva@9/konva.min.js"></script>
 <script src="main.js" type="module"></script>
 <body>
-    <div id="tree-container" style="width: 100%; height: 100%;">
+    <div id="tree-container" style="width: 100%; height: 100%; position: relative;">
       <div class="btn" 
       style="cursor: pointer; position: absolute; top: 50px; left: 48%; border: 1px solid black; width: 80px; height: 30px; justify-content: center; align-items: center; border-radius: 5px; display: flex;">
         Change
       </div>
+      <div id="myCanvas" style="position: absolute;"></div>
     </div>
 </body>
 </html>
