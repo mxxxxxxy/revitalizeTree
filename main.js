@@ -924,38 +924,6 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
     centerNode(root, true);
     var quadtree = Quadtree.addAll(root.descendants());
 
-    var OpacityFilter = (imageData) => {
-        console.log(imageData)
-        var nPixels = imageData.data.length;
-        for (let i = 0; i < nPixels.length; i += 4) {
-            const alpha = maskData[i + 3]; // B 通道
-            console.log(alpha)
-            if (alpha == 0) {
-                imageData[i + 3] = 255; // 将 alpha 通道设置为 0（透明）
-            }
-        }
-        // return imgData
-    }; 
-
-    var getMaskFilter = (maskImageData) => {
-        return (imageData) => {
-            var nPixels = imageData.data.length;
-            console.log(nPixels, maskImageData.data.length)
-            console.log(imageData, maskImageData)
-            for (let i = 0; i < maskImageData.length; i += 4) {
-                const maskR = maskData[i]; // R 通道（黑白二值图，RGB 通道值相等）
-                const maskG = maskData[i + 1]; // G 通道
-                const maskB = maskData[i + 2]; // B 通道
-      
-                // 如果 mask 是黑色（RGB 全为 0），将目标图像像素透明
-                if (maskR === 0 && maskG === 0 && maskB === 0) {
-                  imgData[i + 3] = 0; // 将 alpha 通道设置为 0（透明）
-                }
-            }
-            // return imgData
-        }; 
-    }
-
     var stage = new Konva.Stage({
         container: 'myCanvas',
         width: 400,
@@ -964,7 +932,18 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
 
     var layer = new Konva.Layer();
     stage.add(layer);
-
+    Konva.Image.fromURL('./mao/background.png', (background) => {
+        background.setAttrs({
+            x: 0,
+            y: 0,
+            width: 400,
+            height: 595,
+            draggable: false,
+            name: 'background',
+            // zindex: 0,
+        });
+        layer.add(background);
+    })
     Konva.Image.fromURL('./mao/mask.png',  (maskImage) => {
         maskImage.cache()
         root.descendants().forEach((_node) => {
@@ -977,6 +956,7 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
                 id: `${d.name}`,
                 draggable: true,
                 name: 'originalNode',
+                // zindex: 1,
             })
             originalNode.crop({
                 x: d.position[0][0],    
@@ -987,44 +967,37 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
             originalNode.cache();
             originalNode.on('mouseover', (e) => {
                 let target = e.currentTarget;
-                let hoverOverlay = target.clone({name: 'hover', listening: false});
-                hoverOverlay.cache()
-                // hoverOverlay.filters([ChangeColor]);
-                interaction.hover(hoverOverlay)
+                interaction.hover(target)
                 stage.container().style.cursor = 'pointer';
-                layer.add(hoverOverlay)
-                layer.draw(); // 应用更改
+                layer.draw();
               });
-            
             originalNode.on('mouseleave', (e) => {
-                layer.find(".hover").forEach((hoverNode) => {
-                    hoverNode.clearCache();
-                    hoverNode.destroy();
-                })
+                let target = e.currentTarget;
+                target.filters(null)
                 stage.container().style.cursor = 'default';
-                layer.draw(); // 应用更改
+                layer.draw();
             });
             layer.add(originalNode);
+            layer.draw()
         })
-        // layer.draw();
-        // const foundNode = layer.findOne('#毛公');
-        // var hoverNode = foundNode.clone({
-        //     id: "hoverNode",
-        //     zindex: 100
-        // })
-        // console.log(hoverNode);
-        // hoverNode.cache({drawBorder:true})
-        // hoverNode.filters([ChangeColor]);
-        // layer.add(hoverNode);
-        // layer.draw();
-        // hoverNode.clearCache();
-
-        // console.log(hoverNode)
-        // const ctxImage = image.toCanvas().getContext("2d");;
-        // const imageData = ctxImage.getImageData(0, 0, d._position[1][0], d._position[1][1]);
-        // const ctxMask = mask.toCanvas().getContext("2d");;
-        // const maskData = ctxMask.getImageData(0, 0, d._position[1][0], d._position[1][1]);
-        // const ctxImage = image.toCanvas().getContext("2d");;
-        // const imageData = ctxImage.getImageData(0, 0, d._position[1][0], d._position[1][1]);
+        root.links().forEach((d) => {
+            var pathNode = new Konva.Path({
+                data: ancientPath(d),
+                stroke: '#000000',
+                fill: null,
+                zindex: 2,
+                // closed: false
+            });
+            layer.add(pathNode);
+        })
     });
 });
+
+
+// console.log(hoverNode)
+// const ctxImage = image.toCanvas().getContext("2d");;
+// const imageData = ctxImage.getImageData(0, 0, d._position[1][0], d._position[1][1]);
+// const ctxMask = mask.toCanvas().getContext("2d");;
+// const maskData = ctxMask.getImageData(0, 0, d._position[1][0], d._position[1][1]);
+// const ctxImage = image.toCanvas().getContext("2d");;
+// const imageData = ctxImage.getImageData(0, 0, d._position[1][0], d._position[1][1]);
