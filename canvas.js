@@ -693,12 +693,14 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
             gsap.to({}, {
                 duration: 1,
                 onUpdate: function () {
-                    link.data(tweenFunc(this.ratio));
+                    console.log('update')
+                    // link.data(tweenFunc(this.ratio));
                 },
-                onComplete: () => {
-                    if (mode === "modern") {
-                        link.data(calFunc(link.d));
-                    }
+                onComplete: function () {
+                    // console.log('complete', mode)
+                    // if (mode === "modern") {
+                    //     link.data(calFunc(d))
+                    // }
                 }
             });
         })

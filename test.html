@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSAP 和 Konva.js 的路径动画</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.7/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/konva/9.2.0/konva.min.js"></script>
+  <script src="https://assets.codepen.io/16327/MorphSVGPlugin3.min.js"></script>
+</head>
+<body>
+  <div id="container"></div>
+
+  <script>
+    // 创建 Konva 舞台
+    const stage = new Konva.Stage({
+      container: 'container',
+      width: 300,
+      height: 300,
+    });
+
+    const layer = new Konva.Layer();
+    stage.add(layer);
+
+    // 定义初始路径和目标路径
+    const initialPath = 'M10,80 C40,10 65,10 95,80 S150,150 180,80'; // 初始是曲线
+    const targetPath = 'M10,10 H190 V190 H10 Z'; // 目标是矩形
+
+    // 创建 Konva.Path 对象
+    const path = new Konva.Path({
+      x: 50,
+      y: 50,
+      data: initialPath, // 设置为初始路径
+      fill: 'none',
+      stroke: 'black',
+      strokeWidth: 2,
+    });
+
+    layer.add(path);
+    layer.draw();
+
+    // 使用 GSAP 和 MorphSVGPlugin 进行路径动画
+    gsap.to(path, {
+      duration: 2, // 动画时长
+      data: targetPath, // 动画的目标路径
+      ease: 'power1.inOut',
+      onUpdate: () => {
+        layer.batchDraw(); // 确保路径的变化实时更新
+      },
+    });
+  </script>
+</body>
+</html>
