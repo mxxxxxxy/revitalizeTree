@@ -63,5 +63,14 @@ export function getImageData(imagePath) {
         img.src = imagePath;
     })
 }
+
+export function loadImg(imgSrc){
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.src = imgSrc;
+        image.onload = () => resolve(image); // 图片加载成功
+        image.onerror = (err) => reject(err); // 图片加载失败
+    });
+}
   
   

@@ -1,6 +1,6 @@
 
 import controlPointsDict from "./mao/controlPoints.json" with { type: "json" };
-import { calculateImageSize } from "./utils.js";
+import { calculateImageSize, loadImg } from "./utils.js";
 import interaction from "./interaction.js";
 
 var newControlPointsDict;
@@ -256,6 +256,13 @@ function elbow(d) {
 
 
 // preprocessing
+const padding = {
+    top: 0.1,
+    bottom: 0.1,
+    left: 0.05,
+    right: 0.05
+}
+
 var imgSize = await calculateImageSize("./mao/img.jpeg", 400)
 // Get JSON data
 var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
@@ -680,6 +687,11 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
         // canvas 切换
 
         // link切换
+        var groupOffset = {
+            x: mode === "modern" ? imgSize.newWidth * padding.left : 0,
+            y: mode === "modern" ? imgSize.newHeight * padding.top : 0,
+        }
+        
         layer.find('.linkPath').forEach(link => {
             let previous = link.data();
             let current = calFunc(link.d);
@@ -721,12 +733,19 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
         };
 
         childCount(0, root);
-        var newHeight = d3.max(levelWidth) * 60; // 25 pixels per line  
-        tree.size([imgSize.newWidth, imgSize.newHeight]);
+        // var newHeight = d3.max(levelWidth) * 60; // 25 pixels per line  
+        const treeSize = {
+            width: imgSize.newWidth * (1 - padding.left - padding.right),
+            height: imgSize.newHeight * (1 - padding.top - padding.bottom),
+        }
+        // tree.size([imgSize.newWidth, imgSize.newHeight]);
+        tree.size([treeSize.width, treeSize.height]);
+        // tree.nodeSize([10, 20]);
         // console.log(newHeight, viewerHeight)
         newControlPointsDict = resizePoints(initSize, [imgSize.newWidth, imgSize.newHeight], root);
 
         tree(root)
+        // console.log(root)
         // Compute the new tree layout.
         var nodes = root.descendants(),
             links = root.links();
@@ -739,8 +758,9 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
         // d.y = (d.depth * 500); //500px per level.
         // });
 
-        // Update the nodes…
-        node = svgGroup.selectAll("g.node")
+        // nodes…
+        {
+            node = svgGroup.selectAll("g.node")
             .data(nodes, function (d) {
                 return d.id || (d.id = ++i);
             });
@@ -865,45 +885,53 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
 
         nodeExit.select("text")
             .style("fill-opacity", 0);
+        }
 
-        // Update the links…
-        var link = svgGroup.selectAll("path.link")
+        // links
+        {
+            // Update the links…
+            var link = svgGroup.selectAll("path.link")
             .data(links, function (d) {
                 return d.target.id;
             });
 
-        // Enter any new links at the parent's previous position.
+            // Enter any new links at the parent's previous position.
 
-        const linkEnter = link.enter()
-            .insert("path", "g")
-            .attr("class", "link")
-            .attr("target", d => { return d.target.data.name })
-            .attr("d", function (d) {
-                var o = {
-                    x: source.x0,
-                    y: source.y0
-                };
-                if (mode === "ancient") {
-                    o.x = source.data._position[0][0] + source.data._position[1][0] / 2,
-                        o.y = source.data._position[0][1] + source.data._position[1][1] / 2
-                }
-                return elbow({
-                    source: o,
-                    target: o
+            const linkEnter = link
+                .enter()
+                .insert("path", "g")
+                .attr("class", "link")
+                .attr("target", d => { return d.target.data.name })
+                .attr("d", function (d) {
+                    var o = {
+                        x: source.x0,
+                        y: source.y0
+                    };
+                    if (mode === "ancient") {
+                        o.x = source.data._position[0][0] + source.data._position[1][0] / 2;
+                        o.y = source.data._position[0][1] + source.data._position[1][1] / 2;
+                    }
+                    return elbow({
+                        source: o,
+                        target: o
+                    })
                 })
-            });
+                .attr("transform",() => {
+                    console.log(mode)
+                    return mode === "ancient" ? null : `translate(${treeSize.width * padding.top},${treeSize.width * padding.left})`
+                });
 
-        // Transition links to their new position.
-        linkUpdate = link.merge(linkEnter);
+            // Transition links to their new position.
+            linkUpdate = link.merge(linkEnter);
 
-        linkUpdate.transition()
+            linkUpdate.transition()
             .duration(duration)
             .attr("d", function (d) {
                 return mode === "ancient" ? ancientPath(d) : elbow(d)
             });
 
-        // Transition exiting nodes to the parent's new position.
-        link.exit().transition()
+            // Transition exiting nodes to the parent's new position.
+            link.exit().transition()
             .duration(duration)
             .attrTween('d', function (d) {
                 let previous = d3.select(this).attr("d");
@@ -916,9 +944,9 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
                         o.y = source.data._position[0][1] + source.data._position[1][1] / 2
                 }
                 return d3.interpolatePath(previous, elbow({ source: o, target: o }));
-            }
-            )
+            })
             .remove();
+        }
 
         // Stash the old positions for transition.
         // x0 是旧的x 用于transition
@@ -940,21 +968,38 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
     });
 
     var layer = new Konva.Layer();
+    const backgroundImg = await loadImg('./mao/background.png');
+    const maskImg = await loadImg('./mao/mask.png');
+    const background = new Konva.Image({
+        x: 0,
+        y: 0,
+        width: 400,
+        height: 595,
+        image: backgroundImg,
+        draggable: false,
+    });
+    const maskImage = new Konva.Image({
+        image: maskImg,
+        draggable: false,
+    });
+    layer.add(background);
+
+    var nodeGroup = new Konva.Group({
+        x: 0,//位置坐标
+        y: 0,//位置坐标
+    });
+    var linkGroup = new Konva.Group({
+        x: 0,//位置坐标
+        y: 0,//位置坐标
+    });
+
+    layer.add(nodeGroup);
+    layer.add(linkGroup);
     stage.add(layer);
-    Konva.Image.fromURL('./mao/background.png', (background) => {
-        background.setAttrs({
-            x: 0,
-            y: 0,
-            width: 400,
-            height: 595,
-            draggable: false,
-            name: 'background',
-            // zindex: 0,
-        });
-        layer.add(background);
-    })
-    Konva.Image.fromURL('./mao/mask.png', (maskImage) => {
+
+    {
         maskImage.cache()
+        // add node 
         root.descendants().forEach((_node) => {
             let d = _node.data;
             var originalNode = maskImage.clone({
@@ -999,7 +1044,8 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
                 stage.container().style.cursor = 'default';
                 layer.draw();
             });
-            layer.add(originalNode);
+            nodeGroup.add(originalNode);
+            // layer.add(nodeGroup)
             layer.draw()
         })
         root.links().forEach((d) => {
@@ -1012,9 +1058,10 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
                 id: d.target.data.name,
             });
             pathNode.d = d;
-            layer.add(pathNode);
+            linkGroup.add(pathNode);
         })
-    });
+        layer.draw();
+    }
 });
 
 
