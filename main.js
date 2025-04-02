@@ -688,10 +688,13 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
 
         // link切换
         var groupOffset = {
-            x: mode === "modern" ? imgSize.newWidth * padding.left : 0,
-            y: mode === "modern" ? imgSize.newHeight * padding.top : 0,
+            x: imgSize.newWidth * padding.left,
+            y: imgSize.newHeight * padding.top,
         }
-        
+        root.each(node=>{
+            node.x += (mode === "modern" ? groupOffset.x : -groupOffset.x);
+            node.y += (mode === "modern" ? groupOffset.y : -groupOffset.y);
+        })
         layer.find('.linkPath').forEach(link => {
             let previous = link.data();
             let current = calFunc(link.d);
@@ -705,7 +708,7 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
             gsap.to({}, {
                 duration: 1,
                 onUpdate: function () {
-                    link.data(tweenFunc(this.ratio));
+                    link.data(tweenFunc(this.ratio)); 
                 },
                 onComplete: () => {
                     if (mode === "modern") {
@@ -714,6 +717,12 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
                 }
             });
         })
+        root.descendants().forEach((_node) => {
+            let konvaNode = _node.konvaNode;
+            konvaNode.x = _node.x;
+            konvaNode.y = _node.y;
+        })
+        layer.draw();
     })
 
     function update(source) {
