@@ -688,10 +688,13 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
 
         // link切换
         var groupOffset = {
-            x: mode === "modern" ? imgSize.newWidth * padding.left : 0,
-            y: mode === "modern" ? imgSize.newHeight * padding.top : 0,
+            x: imgSize.newWidth * padding.left,
+            y: imgSize.newHeight * padding.top,
         }
-        
+        root.each(node=>{
+            node.x += (mode === "modern" ? groupOffset.x : -groupOffset.x);
+            node.y += (mode === "modern" ? groupOffset.y : -groupOffset.y);
+        })
         layer.find('.linkPath').forEach(link => {
             let previous = link.data();
             let current = calFunc(link.d);
@@ -705,7 +708,7 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
             gsap.to({}, {
                 duration: 1,
                 onUpdate: function () {
-                    link.data(tweenFunc(this.ratio));
+                    link.data(tweenFunc(this.ratio)); 
                 },
                 onComplete: () => {
                     if (mode === "modern") {
@@ -714,6 +717,29 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
                 }
             });
         })
+        const nodeAjust = {
+            x: -10,
+            y: 0
+        }
+        root.descendants().forEach((_node) => {
+            let konvaNode = _node.konvaNode;
+            let d = _node.data;
+            let tweenFunc = () => {}
+            if(mode === "modern"){
+                tweenFunc = d3.interpolateArray(d._position[0], [_node.x - d._position[1][0] / 2, _node.y - d._position[1][1] / 2]);
+            }else{
+                tweenFunc = d3.interpolateArray([konvaNode.x(), konvaNode.y()], d._position[0]);
+            }
+            gsap.to({}, {
+                duration: 1,
+                onUpdate: function () {
+                    let interPos = tweenFunc(this.ratio);
+                    konvaNode.x(interPos[0]); 
+                    konvaNode.y(interPos[1]); 
+                }
+            });
+        })
+        layer.draw();
     })
 
     function update(source) {
@@ -740,7 +766,7 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
         }
         // tree.size([imgSize.newWidth, imgSize.newHeight]);
         tree.size([treeSize.width, treeSize.height]);
-        // tree.nodeSize([10, 20]);
+        // tree.nodeSize([60,120])
         // console.log(newHeight, viewerHeight)
         newControlPointsDict = resizePoints(initSize, [imgSize.newWidth, imgSize.newHeight], root);
 
@@ -1045,7 +1071,6 @@ var treeJSON = d3.json("./mao/data.json").then(async (treeData) => {
                 layer.draw();
             });
             nodeGroup.add(originalNode);
-            // layer.add(nodeGroup)
             layer.draw()
         })
         root.links().forEach((d) => {
